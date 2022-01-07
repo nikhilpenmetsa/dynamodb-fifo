@@ -10,37 +10,6 @@ fake = Factory.create()
 
 dynamodb = boto3.client('dynamodb')
 
-def create_agentQueue_table():
-
-    response = dynamodb.create_table(
-        TableName='AgentQueueFIFO',
-        KeySchema=[
-            {
-                'AttributeName': 'pk',
-                'KeyType': 'HASH'  # Partition key
-            },
-            {
-                'AttributeName': 'sk',
-                'KeyType': 'RANGE'  # Sort key
-            }
-        ],
-        AttributeDefinitions=[
-            {
-                'AttributeName': 'pk',
-                'AttributeType': 'S'
-            },
-            {
-                'AttributeName': 'sk',
-                'AttributeType': 'S'
-            },
-
-        ],
-        BillingMode='PAY_PER_REQUEST'
-       
-    )
-    print(response)
-
-
 def generate_queue_version_depth():
     language_list = ['English','French','Spanish']
     gender_list = ['F','M']
@@ -56,9 +25,7 @@ def generate_queue_version_depth():
             )
 
 
-
 def generate_agents(numOfAgents):
-    #AgentQueueFIFOTable= dynamodb.Table('AgentQueueFIFO')
     language_list = ['English','French','Spanish']
     agentList = []
     for i in range(numOfAgents):
@@ -66,16 +33,13 @@ def generate_agents(numOfAgents):
         agent_profile = fake.profile()
         agent['agent_name'] = agent_profile['name'].split(' ',2)[0]
         agent['gender'] = agent_profile['sex']
-        #agent['language'] = random.choice(language_list)
         num_of_languages=random.randint(1, 3)
-        #agent['language'] = random.choices(language_list,k=num_of_languages)
         agent['language'] = random.sample(language_list,k=num_of_languages)
-        #print(agent['language'])
-        #todo - change Languages from map to list.
         print(agent)
         response = dynamodb.put_item(TableName='AgentQueueFIFO', 
             Item={
                 'pk' : {'S':'Agents'},
+                #using agent_name in sort key to make it easy to understand. Uniqueness is not guarenteed. Use AgentID instead.
                 'sk' : {'S':"Agent#"+agent['agent_name']},
                 'AgentName' : {'S': agent['agent_name']},
                 'AgentID' : {'S' : str(uuid.uuid4())},
@@ -84,14 +48,10 @@ def generate_agents(numOfAgents):
                 'AgentStatus' : {'S': 'available'}
             }
         )
-        print("Wrote agent to table - " + str(response['ResponseMetadata']['HTTPStatusCode']))         
-        #print(response['ResponseMetadata']['HTTPStatusCode'])
+        print("**Wrote agent to table - " + str(response['ResponseMetadata']['HTTPStatusCode']))         
 
 
 if __name__ == '__main__':
-    #create_agentQueue_table()
-    #print("Table status:", agent_queue_table.TableStatus)
-    agentList=generate_agents(5)
+    #todo use cmd args for agent pool size
+    generate_agents(5)
     generate_queue_version_depth()
-    # #dynamodb.Table("AgentQueueFIFO").put_item(Item=call_queue_item)
-

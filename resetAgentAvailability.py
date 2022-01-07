@@ -1,18 +1,8 @@
-from typing import ItemsView
 import boto3
-import random
-from faker import Factory
-from time import sleep
-from datetime import datetime
-import uuid
 from boto3.dynamodb.conditions import Key
 from boto3.dynamodb.conditions import Attr
 
-fake = Factory.create()
-
-dynamodb_c = boto3.client('dynamodb')
 dynamodb_r = boto3.resource('dynamodb')
-
 
 def reset_all_attending_to_avail():
     agentQueryResponse = dynamodb_r.Table("AgentQueueFIFO").query(
@@ -33,8 +23,6 @@ def reset_all_attending_to_avail():
             }
         )
         print(updateItemResponse)
-
-
 
 if __name__ == '__main__':
     reset_all_attending_to_avail()

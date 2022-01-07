@@ -1,20 +1,17 @@
 from logging import error
-from typing import ItemsView
 import boto3
 import random
-from faker import Factory
 from time import sleep
 from datetime import datetime
-import uuid
 from boto3.dynamodb.conditions import Key
 from boto3.dynamodb.conditions import Attr
 
-fake = Factory.create()
 
 dynamodb_c = boto3.client('dynamodb')
 dynamodb_r = boto3.resource('dynamodb')
 
-def generate_call_queue():
+# Adding any "available" agents to agent queues
+def generate_agent_queue():
     
     agentQueryResponse = dynamodb_r.Table("AgentQueueFIFO").query(
         KeyConditionExpression=Key('pk').eq("Agents"),
@@ -48,7 +45,8 @@ def generate_call_queue():
             #print(transactionItem)
             agentQueueTransactionItems.append(transactionItem)
 
-            #update queue depth for each language
+            #add queue metadata updates to transaction
+            #update queue version(atomic counter) and increment queue depth for each language queue.
             updateTransactionItem={}
             updateTransactionItem['Update']=dict({'TableName': 'AgentQueueFIFO'})
 
@@ -64,10 +62,9 @@ def generate_call_queue():
                     ':zero':dict({'N':'0'})
                 }
             )
-            #print("-----2-----")
-            #print(updateTransactionItem)
             agentQueueTransactionItems.append(updateTransactionItem)
 
+            #update agentstatus is queued
             if not updateAgentStatusTransactionItem:
                 updateAgentStatusTransactionItem['Update']=dict({'TableName': 'AgentQueueFIFO'})
                 key={}
@@ -84,15 +81,14 @@ def generate_call_queue():
                 )
                 agentQueueTransactionItems.append(updateAgentStatusTransactionItem)
 
-        #print(transactionItem)
         print(agentQueueTransactionItems)
-        #print("-----3-----")
+
         try:
             transactionResponse = dynamodb_c.transact_write_items(TransactItems=agentQueueTransactionItems)
         except dynamodb_c.exceptions.TransactionCanceledException as e:
             print(e.response)
-        print("wrote to db in transaction")
-        #print(transactionResponse)
+        print("***Transaction successful. Assigned first matching agent in queue to call. Updated queue metadata. Removed agent from other queues. Updated Agent status")
+        #mimick queuing agents at random intervals
         sleep(random.randint(1, 15))
 
 
@@ -100,6 +96,6 @@ if __name__ == '__main__':
     #create_agentQueue_table()
     #print("Table status:", agent_queue_table.TableStatus)
     #agentList=generate_agents(8)
-    generate_call_queue()
+    generate_agent_queue()
     # #dynamodb.Table("AgentQueueFIFO").put_item(Item=call_queue_item)
 

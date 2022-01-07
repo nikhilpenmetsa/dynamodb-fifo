@@ -13,7 +13,7 @@ dynamodb_r = boto3.resource('dynamodb')
 dynamodb_c = boto3.client('dynamodb')
 
 # peek all queues
-def getAllQueueDepths():
+def getAllQueueMetadata():
     language_list = ['English','French','Spanish']
     gender_list = ['F','M']
     allQueuesTransactionItems=[]
@@ -29,7 +29,6 @@ def getAllQueueDepths():
             getTransactionItem['Get']['Key']=key
             allQueuesTransactionItems.append(getTransactionItem)
 
-    #print(allQueuesTransactionItems)
     try:
         transactionResponse = dynamodb_c.transact_get_items(TransactItems=allQueuesTransactionItems)
     except dynamodb_c.exceptions.TransactionCanceledException as e:
@@ -46,9 +45,10 @@ def getAllQueueDepths():
     return queueDepthVersionMap
 
 def getFirstAgentQueueDetails(criteria):
-    #query and return first item.get launguage(s), availdate
+    #query and return first item.get launguage(s)
     response = dynamodb_r.Table("AgentQueueFIFO").query(
-        KeyConditionExpression=Key('pk').eq(criteria)
+        KeyConditionExpression=Key('pk').eq(criteria),
+        ConsistentRead=True
     )
     #print("-----------")
     #print(response)
@@ -57,7 +57,7 @@ def getFirstAgentQueueDetails(criteria):
         print(response['Items'][0])
         return response['Items'][0]
     else:
-        print("***No agent available for " + criteria)
+        print("***No agent available for " + criteria)        
 
 def assignFirstAgent(agentQueueItem,currentQueuesState):
     language_list = list(agentQueueItem['Languages'])
@@ -115,7 +115,6 @@ def assignFirstAgent(agentQueueItem,currentQueuesState):
         #print(transactionItem)
     #print(assignAgentTransactionItems)
 
-    #print("-----3-----")
     try:
         transactionResponse = dynamodb_c.transact_write_items(TransactItems=assignAgentTransactionItems)
     except dynamodb_c.exceptions.TransactionCanceledException as e:
@@ -126,16 +125,15 @@ def assignFirstAgent(agentQueueItem,currentQueuesState):
 if __name__ == '__main__':
     
     # print('Argument List:', str(sys.argv))
-    
     criteria = sys.argv[1]
-    print(criteria)
-    # criteria="Q#Spanish#F"
-    #get all queue depths and versions in a trasaction.
-    currentQueuesState = getAllQueueDepths()
+    # Get queue versionId for optimistic locking
+    currentQueuesState = getAllQueueMetadata()
 
     #query for specific criteria
+    print("Finding first matching agent for: " + criteria)
     firstAvailAgent = getFirstAgentQueueDetails(criteria)
+
+    #dequeue - remove item and related items, decrement queue depths, condition check
     if firstAvailAgent:
         assignFirstAgent(firstAvailAgent,currentQueuesState)
-    #dequeue - remove item and related items, decrement queue depths, condition check
 
