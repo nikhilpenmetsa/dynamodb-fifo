@@ -16,6 +16,7 @@
 `python addAvailAgentsToQueue.py`
 
 ## Assign agents to callers
+To find the first agent who speaks French and has a male gender.
 `python assignAgentToCallRequest.py Q#French#M`
 
 ## Cleanup
