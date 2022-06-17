@@ -33,15 +33,13 @@ def getAllQueueMetadata():
         transactionResponse = dynamodb_c.transact_get_items(TransactItems=allQueuesTransactionItems)
     except dynamodb_c.exceptions.TransactionCanceledException as e:
         print(e.response)
-    #print("got queue depths in a transaction")
-    #print(transactionResponse['Responses'])
 
     queueDepthVersionMap={}
     for queueDetails in transactionResponse['Responses']:
         item=queueDetails['Item']
         queueDepthVersionMap[item['sk']['S']]=dict({'QueueVersionId':item['QueueVersionId']['N'],'QueueDepth':item['QueueDepth']['N']})
-    print("***Captured all current queue versions and depths in a transaction")
-    print(queueDepthVersionMap)
+    print("Current queue versions and depths:")
+    print(json.dumps(queueDepthVersionMap,sort_keys=True, indent=4))
     return queueDepthVersionMap
 
 def getFirstAgentQueueDetails(criteria):
@@ -50,25 +48,21 @@ def getFirstAgentQueueDetails(criteria):
         KeyConditionExpression=Key('pk').eq(criteria),
         ConsistentRead=True
     )
-    #print("-----------")
-    #print(response)
     if response['Items']:
-        print("***Found " , len(response['Items']), " available agent for " +criteria + "... Assigning earliest available agent")
-        print(response['Items'][0])
+        print("Found " , len(response['Items']), " available agent(s) for " +criteria)
         return response['Items'][0]
     else:
-        print("***No agent available for " + criteria)        
+        print("No agent available for " + criteria)        
 
 def assignFirstAgent(agentQueueItem,currentQueuesState):
+    print("First matched agent queue message: " + agentQueueItem['AgentName'] + "  available since " + agentQueueItem['sk'])
     language_list = list(agentQueueItem['Languages'])
+    print("Agent " + agentQueueItem['AgentName'] + " is in " + str(len(language_list)) + " queue(s)\n")
     gender = agentQueueItem['Gender']
-    #print(language_list)
-    #print(gender)
     assignAgentTransactionItems=[]
     updateAgentStatusTransactionItem ={}
     for language in language_list:
-        #print(language)
-        
+       
         #delete item for each language
         deleteTransactionItem={}
         deleteTransactionItem['Delete']=dict({'TableName': 'AgentQueueFIFO'})
@@ -76,8 +70,9 @@ def assignFirstAgent(agentQueueItem,currentQueuesState):
         deleteKey['pk']=dict({'S':"Q#"+language+"#"+gender})
         deleteKey['sk']=dict({'S':agentQueueItem['sk']})
         deleteTransactionItem['Delete']['Key']=deleteKey
-        assignAgentTransactionItems.append(deleteTransactionItem)
 
+        print("Preparing transaction - Deleting agent queue message for " + agentQueueItem['AgentName'] + " and " + language )
+        assignAgentTransactionItems.append(deleteTransactionItem)
 
         updateTransactionItem={}
         updateTransactionItem['Update']=dict({'TableName': 'AgentQueueFIFO'})
@@ -94,6 +89,7 @@ def assignFirstAgent(agentQueueItem,currentQueuesState):
                 ':lastKnownQueueVersionId':dict({'N' : currentQueuesState["Q#"+language+"#"+gender]['QueueVersionId']})
             }
         )
+        print("Preparing transaction - Incrementing queue versionID and decrementing queue depth of Q#"+ language + "#" +agentQueueItem['Gender'])
         assignAgentTransactionItems.append(updateTransactionItem)
         
         if not updateAgentStatusTransactionItem:
@@ -110,6 +106,7 @@ def assignFirstAgent(agentQueueItem,currentQueuesState):
                     #':assigned':dict({'S' : 'assigned'})
                 }
             )
+            print("Preparing transaction - Updating agent status to attendingCall")
             assignAgentTransactionItems.append(updateAgentStatusTransactionItem)
 
         #print(transactionItem)
@@ -117,9 +114,12 @@ def assignFirstAgent(agentQueueItem,currentQueuesState):
 
     try:
         transactionResponse = dynamodb_c.transact_write_items(TransactItems=assignAgentTransactionItems)
+        print("Transaction successful. Agent " + agentQueueItem['AgentName'] + " is matched to the caller.\n")
+
     except dynamodb_c.exceptions.TransactionCanceledException as e:
         print(e.response)
-    print("***Dequeued agent call queue items, updated queue depths,versions, updated agent availability in a transaction")
+        print(transactionResponse)
+    #print("***Dequeued agent call queue items, updated queue depths,versions, updated agent availability in a transaction")
     #print(transactionResponse)
 
 if __name__ == '__main__':
@@ -130,7 +130,7 @@ if __name__ == '__main__':
     currentQueuesState = getAllQueueMetadata()
 
     #query for specific criteria
-    print("Finding first matching agent for: " + criteria)
+    print("Query first matching agent for: " + criteria)
     firstAvailAgent = getFirstAgentQueueDetails(criteria)
 
     #dequeue - remove item and related items, decrement queue depths, condition check

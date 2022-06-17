@@ -31,7 +31,8 @@ def create_agentQueue_table():
         BillingMode='PAY_PER_REQUEST'
        
     )
-    print(response)
+
+    print("Created table " + response['TableDescription']['TableName'] + " successfully")
 
 
 if __name__ == '__main__':

@@ -8,8 +8,7 @@ def delete_agentQueue_table():
     response = dynamodb.delete_table(
         TableName='AgentQueueFIFO'
     )
-    print(response)
-
+    print("Deleted table " + response['TableDescription']['TableName'] + " successfully")
 
 if __name__ == '__main__':
     delete_agentQueue_table()

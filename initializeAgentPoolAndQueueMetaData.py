@@ -35,7 +35,7 @@ def generate_agents(numOfAgents):
         agent['gender'] = agent_profile['sex']
         num_of_languages=random.randint(1, 3)
         agent['language'] = random.sample(language_list,k=num_of_languages)
-        print(agent)
+        #print(agent)
         response = dynamodb.put_item(TableName='AgentQueueFIFO', 
             Item={
                 'pk' : {'S':'Agents'},
@@ -48,10 +48,10 @@ def generate_agents(numOfAgents):
                 'AgentStatus' : {'S': 'available'}
             }
         )
-        print("**Wrote agent to table - " + str(response['ResponseMetadata']['HTTPStatusCode']))         
+        print("Added " + str(agent) + " to pool")
 
 
 if __name__ == '__main__':
-    #todo use cmd args for agent pool size
+    #Using 5 for agent pool size
     generate_agents(5)
     generate_queue_version_depth()
