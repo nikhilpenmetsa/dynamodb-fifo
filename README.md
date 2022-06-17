@@ -1,9 +1,10 @@
 # Implementing Serverless FIFO queues with filtering capability using DynamoDB transactions
 
+
 ## Setup instructions
-`git clone git@github.com:nikhilpenmetsa/dynamodb-fifo.git`  clone repository
-`cd dynamodb-fifo`   cd to scripts directory
-`pip install -r requirements.txt`   Install dependent packages
+* `git clone git@github.com:nikhilpenmetsa/dynamodb-fifo.git`  clone repository
+* `cd dynamodb-fifo`   cd to scripts directory
+* `pip install -r requirements.txt`   Install dependent packages
 
 ## Create DynamoDB Agent Queue
 `python createTable.py`
